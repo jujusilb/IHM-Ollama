@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+</head>
+
+<body>
+    <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        #idReponse {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .box {
+            display: flex;
+            border-radius: 15px;
+            border: 1px solid #AAAAAA;
+            width: 300px;
+            padding: 15px;
+            justify-content: center
+        }
+
+        .question {
+            background: linear-gradient(45deg, #aea, #7e7);
+            align-self: flex-end;
+        }
+
+        .reponse {
+            background: linear-gradient(45deg, #aae, #77e);
+            text-align: start;
+            align-self: flex-start;
+        }
+
+        .erreur {
+            background: linear-gradient(45deg, #eaa, #e77);
+            margin: auto;
+        }
+
+        #idDivQuestion {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+    <div id="idDivMenu" class="text-light bg-dark sticky-top d-flex justify-content-between">
+        <div id="idVocal">
+            <label for="idVocal">Vocaliser</labelclass="bg-light">
+            <input type="checkbox" id="idVocal">
+        </div>
+        <div id="divModel">
+            <label for="idSelectModel">model (LLM)</label>
+            <select id="idSelectModel"></select>            
+        </div>
+
+    </div>
+    <div id="idDivConversation" class="bordeder bg-dark-subtle">
+        <div id="idReponse"></div>
+        <div id="idDivQuestion" class="sticky-bottom border border-info">
+            <label for="idInputQuestion">Votre Question</label>
+            <input type="text" autofocus id="idInputQuestion">
+            <button id="idBtnQuestion" class="btn btn-primary">ENVOYER</button>
+            <br><br>
+
+        </div>
+    </div>
+
+    <script>
+        let synth = window.speechSynthesis;
+        function vocaliser(chaine) {
+            if (idVocal.checked) {
+                const utterThis = new SpeechSynthesisUtterance(chaine);
+                //utterThis.pitch = hauteur.value;
+                utterThis.rate = 3;
+                synth.speak(utterThis);
+            }
+        }
+        let model=""
+        let selectModel =document.getElementById('idSelectModel')
+        let divConversation=document.getElementById("idDivConversation")
+        console.log(divConversation)
+        let inputQuestion = document.getElementById("idInputQuestion")
+        let btnQuestion = document.getElementById("idBtnQuestion")
+        inputQuestion.addEventListener("keydown", function () {
+            if (event.key == "Enter") {
+                if (inputQuestion.value.length > 0) {
+                    console.log("Ok")
+                    getOllamaResponse()
+                } else console.log("pas ok")
+            }
+        })
+        btnQuestion.addEventListener("click", getOllamaResponse)
+        
+
+        let responseDiv = document.getElementById('idReponse');
+        getModel()
+            .then(models => {
+                console.log("IN THEN")
+                console.log(models)
+                models.forEach(item => {
+                    const option =document.createElement("option")
+                    option.value =item
+                    option.textContent =item
+                    selectModel.appendChild(option)
+                });
+                selectModel.addEventListener("change", function(e){
+                    model=e.target.value
+                    console.log("selectedModel", model)
+                })
+            })
+
+        async function getModel() {
+            try {
+                let response = await fetch("http://127.0.0.1:11434/api/tags")
+                if (response.ok) {
+                    let data = await response.json()
+                    const models = data.models?.map(model => model.name) || {}
+                    //console.log(data)
+                    return models
+                }
+                else {
+                    throw new Error("Erreur http ${response.status}")
+                }
+            } catch (error) {
+                console.error("Erreur lors de la recuperation", error)
+            }
+        }
+
+
+        async function getOllamaResponse() {
+            let prompt = inputQuestion.value
+            vocaliser(prompt)
+            //responseDiv.innerHTML += prompt + "<br>"
+            createDiv(prompt, "question")
+            try {
+                model = model || "gemma3"
+                let response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        prompt: prompt,
+                        stream: false // Pour attendre la réponse complète
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                    console.log("echoue")
+                }
+
+                const data = await response.json();
+                console.log(data);
+
+                //responseDiv.innerHTML += data.response + "<br>";
+                createDiv(data.response + "<br>", "reponse")
+                vocaliser(data.response)
+                inputQuestion.value = ""
+            } catch (error) {
+                console.error('Erreur lors de la communication avec Ollama:', error);
+                //responseDiv.innerText += createDiv('Désolé, une erreur est survenue.', "erreur");
+                createDiv('Désolé, une erreur est survenue.', "erreur");
+            }
+        }
+        function createDiv(chaine, type) {
+            let div = document.createElement("div")
+            responseDiv.appendChild(div)
+            switch (type) {
+                case "question":
+                    div.classList.add("box", "question")
+                    break
+                case "reponse":
+                    div.classList.add("box", "reponse")
+                    break
+                case "erreur":
+                    div.classList.add("box", "erreur")
+                    break
+            }
+            div.innerHTML = chaine
+        }
+    </script>
+</body>
+
+</html>
