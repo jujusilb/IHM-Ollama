@@ -19,10 +19,12 @@
         .box {
             display: flex;
             border-radius: 15px;
+font-size:2em;
             border: 1px solid #AAAAAA;
-            width: 300px;
+            width: 1000px;
             padding: 15px;
             justify-content: center
+		
         }
 
         .question {
@@ -34,6 +36,7 @@
             background: linear-gradient(45deg, #aae, #77e);
             text-align: start;
             align-self: flex-start;
+	margin-left:15px;
         }
 
         .erreur {
@@ -159,7 +162,9 @@
                 console.log(data);
 
                 //responseDiv.innerHTML += data.response + "<br>";
-                createDiv(data.response + "<br>", "reponse")
+console.log(data.response)
+	let reponseFinale =data.response.replace(/\n/g, "<br>")
+                createDiv(reponseFinale + "<br>", "reponse")
                 vocaliser(data.response)
                 inputQuestion.value = ""
             } catch (error) {
